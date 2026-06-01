@@ -1,5 +1,9 @@
-# Salida de graficos generados
-output/
+# Salida de graficos generados por el programa (raiz de cada TP)
+/TP2.1/output/
+/TP2.2/output/
+
+# Pero SI versionar las imagenes copiadas a la carpeta del informe
+# (necesarias para compilar el .tex en Overleaf): informe/output/ no se ignora.
 
 # Python
 __pycache__/
@@ -9,16 +13,16 @@ __pycache__/
 venv/
 env/
 
-# LaTeX (artefactos de compilacion)
-informe/*.aux
-informe/*.log
-informe/*.out
-informe/*.toc
-informe/*.synctex.gz
-informe/*.fls
-informe/*.fdb_latexmk
-informe/*.bbl
-informe/*.blg
+# LaTeX (artefactos de compilacion, en cualquier subcarpeta informe/)
+*.aux
+*.log
+*.out
+*.toc
+*.synctex.gz
+*.fls
+*.fdb_latexmk
+*.bbl
+*.blg
 
 # Editores / SO
 .vscode/
