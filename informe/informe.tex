@@ -1,0 +1,541 @@
+\documentclass[11pt]{article}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[spanish]{babel}
+\usepackage[margin=2.5cm]{geometry}
+\usepackage{hyperref}
+\usepackage{url}
+\usepackage{booktabs}
+\usepackage{amsfonts}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{nicefrac}
+\usepackage{microtype}
+\usepackage{graphicx}
+\usepackage{subcaption}
+\usepackage{float}
+\usepackage{titling}
+\usepackage{abstract}
+
+\renewcommand{\abstractnamefont}{\normalfont\bfseries}
+\renewcommand{\abstracttextfont}{\normalfont\small\itshape}
+
+\title{\textbf{TP 2.1 - Generadores de n\'umeros pseudoaleatorios}}
+
+\author{
+  Agustin Santinelli \\
+  Ingenier\'ia en Sistemas de Informaci\'on \\
+  Universidad Tecnol\'ogica Nacional \\
+  Legajo 52211 \\
+  \texttt{agustinsantinelli@gmail.com}
+  \and
+  Joaquin Peralta \\
+  Ingenier\'ia en Sistemas de Informaci\'on \\
+  Universidad Tecnol\'ogica Nacional \\
+  Legajo 52151 \\
+  \texttt{joaaperalta@gmail.com}
+  \and
+  Martin Ratti \\
+  Ingenier\'ia en Sistemas de Informaci\'on \\
+  Universidad Tecnol\'ogica Nacional \\
+  Legajo 52398 \\
+  \texttt{martinratti10@gmail.com}
+  \and
+  Tomas Levrand \\
+  Ingenier\'ia en Sistemas de Informaci\'on \\
+  Universidad Tecnol\'ogica Nacional \\
+  Legajo 52206 \\
+  \texttt{tomylevrand@gmail.com}
+}
+
+\date{\today}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+\noindent Se implementan en Python 3 cuatro generadores de n\'umeros
+pseudoaleatorios --- un Generador Congruencial Lineal (GCL), el M\'etodo
+de los Cuadrados Medios de Von Neumann, un generador XorShift de 32 bits
+y, como referencia, el generador nativo de Python (Mersenne Twister) ---
+y se eval\'ua la calidad de las secuencias producidas mediante cinco
+pruebas estad\'isticas: chi-cuadrado de uniformidad, test de rachas,
+Kolmogorov-Smirnov, autocorrelaci\'on serial y test de p\'oker. Los
+resultados muestran un ordenamiento claro de calidad: el M\'etodo de los
+Cuadrados Medios degenera y falla todas las pruebas, el GCL y el Mersenne
+Twister superan la mayor\'ia exhibiendo apenas una correlaci\'on serial
+marginal, y el XorShift supera la totalidad de los tests. Se concluye que
+la calidad estad\'istica de un generador depende cr\'iticamente de su
+algoritmo y par\'ametros, y que una bater\'ia de tests complementarios es
+indispensable para validarlo.
+
+\vspace{0.5em}
+\noindent\textbf{Palabras clave:} Simulaci\'on, N\'umeros pseudoaleatorios,
+Generador congruencial lineal, Cuadrados medios, XorShift, Mersenne
+Twister, Chi-cuadrado, Kolmogorov-Smirnov, Test de rachas, Autocorrelaci\'on.
+\end{abstract}
+
+\section{Introducci\'on}
+
+Un \emph{n\'umero pseudoaleatorio} es un valor producido por un proceso
+determinista que, sin embargo, no exhibe patrones ni regularidades
+aparentes desde un punto de vista estad\'istico. A diferencia de un
+n\'umero verdaderamente aleatorio --- que proviene de un fen\'omeno
+f\'isico impredecible, como el ruido t\'ermico o el decaimiento
+radiactivo --- una secuencia pseudoaleatoria queda completamente
+determinada por su estado inicial o \emph{semilla}: ante las mismas
+condiciones iniciales, el algoritmo reproduce siempre la misma sucesi\'on.
+
+Esta propiedad de reproducibilidad, lejos de ser un defecto, es deseable
+en simulaci\'on: permite repetir experimentos, depurar modelos y comparar
+escenarios bajo igualdad de condiciones. El costo es que la calidad de la
+``aleatoriedad'' depende enteramente del algoritmo generador y de sus
+par\'ametros. Un mal generador puede introducir correlaciones, ciclos
+cortos o sesgos que invaliden los resultados de una simulaci\'on completa.
+
+El presente trabajo (TP 2.1) tiene tres objetivos:
+
+\begin{enumerate}
+  \item Implementar en Python 3 al menos dos generadores
+    pseudoaleatorios, incluyendo obligatoriamente un Generador
+    Congruencial Lineal.
+  \item Someter las secuencias generadas a un m\'inimo de cuatro pruebas
+    estad\'isticas que permitan juzgar su calidad.
+  \item Comparar los generadores propios entre s\'i y contra el generador
+    que provee la biblioteca est\'andar de Python.
+\end{enumerate}
+
+\section{Materiales y M\'etodos}
+
+\subsection{Generadores de n\'umeros aleatorios reales}
+
+Los generadores de n\'umeros \emph{aleatorios reales} (TRNG, \emph{True
+Random Number Generators}) extraen entrop\'ia de procesos f\'isicos no
+deterministas: ruido at\'ermico en resistencias, jitter de relojes,
+decaimiento radiactivo o fen\'omenos atmosf\'ericos. El servicio
+\texttt{random.org}, por ejemplo, genera n\'umeros a partir del ruido
+atmosf\'erico captado por radios. Su ventaja es la ausencia de
+periodicidad y de estructura algor\'itmica; su desventaja, la baja tasa de
+generaci\'on, la imposibilidad de reproducir una secuencia y la necesidad
+de hardware dedicado. Por estas razones, la mayor\'ia de las simulaciones
+emplean generadores \emph{pseudoaleatorios}, objeto de este trabajo.
+
+\subsection{Generadores pseudoaleatorios implementados}
+
+\subsubsection{Generador Congruencial Lineal (GCL)}
+
+El GCL es uno de los generadores m\'as antiguos y estudiados. Produce la
+secuencia mediante la recurrencia
+\begin{equation}
+X_{n+1} = (a\,X_n + c) \bmod m,
+\end{equation}
+donde $m$ es el \emph{m\'odulo}, $a$ el \emph{multiplicador}, $c$ el
+\emph{incremento} y $X_0$ la semilla. El valor normalizado en $[0,1)$ se
+obtiene como $u_n = X_n / m$. El periodo m\'aximo de la secuencia es $m$
+(o $m-1$ en la variante multiplicativa con $c=0$) y se alcanza s\'olo si
+los par\'ametros satisfacen las condiciones de Hull-Dobell. En este
+trabajo se emplea la configuraci\'on \texttt{MINSTD} revisada de Park y
+Miller:
+\begin{equation}
+a = 48271, \qquad c = 0, \qquad m = 2^{31} - 1 = 2147483647,
+\end{equation}
+un generador congruencial multiplicativo de periodo $m-1$ ampliamente
+documentado y usado como referencia hist\'orica.
+
+\subsubsection{M\'etodo de los Cuadrados Medios (Von Neumann)}
+
+Propuesto por John von Neumann en 1949, es el primer generador
+algor\'itmico de la historia. Partiendo de una semilla de $d$ d\'igitos,
+se la eleva al cuadrado, se rellena el resultado con ceros a la izquierda
+hasta $2d$ d\'igitos y se extraen los $d$ d\'igitos centrales, que
+constituyen el nuevo estado:
+\begin{equation}
+X_{n+1} = \text{d\'igitos centrales}\big(X_n^2\big), \qquad
+u_n = \frac{X_{n+1}}{10^{d}}.
+\end{equation}
+Es un generador deliberadamente d\'ebil: tiende a degenerar en ciclos
+muy cortos o a colapsar en cero cuando los d\'igitos centrales se vuelven
+peque\~nos. Se incluye precisamente para evidenciar c\'omo un generador de
+baja calidad fracasa de manera contundente en las pruebas estad\'isticas.
+
+\subsubsection{XorShift de 32 bits}
+
+Introducido por George Marsaglia en 2003, opera sobre un estado de 32
+bits aplicando una secuencia de desplazamientos l\'ogicos y operaciones
+XOR:
+\begin{align}
+x &\leftarrow x \oplus (x \ll 13), \\
+x &\leftarrow x \oplus (x \gg 17), \\
+x &\leftarrow x \oplus (x \ll 5),
+\end{align}
+con todas las operaciones tomadas m\'odulo $2^{32}$. Tiene periodo
+$2^{32}-1$, es extremadamente r\'apido y de calidad estad\'istica
+notablemente superior a la de un GCL simple. Se incluye como tercer
+generador propio.
+
+\subsubsection{Generador de referencia: Mersenne Twister}
+
+Como patr\'on de comparaci\'on de alta calidad se utiliza
+\texttt{random.Random} de la biblioteca est\'andar de Python, que
+implementa el algoritmo \emph{Mersenne Twister} (MT19937). Posee un
+periodo de $2^{19937}-1$ y equidistribuci\'on en hasta 623 dimensiones,
+lo que lo convierte en el generador de prop\'osito general por defecto en
+la mayor\'ia de los lenguajes modernos.
+
+\subsection{Pruebas estad\'isticas}
+
+Todas las pruebas operan sobre una muestra de $n$ valores
+$u_1,\dots,u_n \in [0,1)$ y contrastan la hip\'otesis nula $H_0$ de que
+provienen de una distribuci\'on uniforme de variables independientes. Se
+fija un nivel de significaci\'on $\alpha = 0{,}05$; se \textbf{rechaza}
+$H_0$ (el generador \emph{falla} la prueba) cuando el $p$-valor es menor
+que $\alpha$.
+
+\subsubsection{Chi-cuadrado de uniformidad}
+
+Se divide $[0,1)$ en $k$ intervalos de igual ancho y se comparan las
+frecuencias observadas $O_i$ con la esperada $E = n/k$:
+\begin{equation}
+\chi^2 = \sum_{i=1}^{k} \frac{(O_i - E)^2}{E},
+\end{equation}
+estad\'istico que sigue una distribuci\'on $\chi^2$ con $k-1$ grados de
+libertad. Mide la \emph{uniformidad} de la muestra. Se emplea $k=10$.
+
+\subsubsection{Test de rachas (runs)}
+
+Eval\'ua la \emph{independencia} de la secuencia. Se construye la sucesi\'on
+de signos de las diferencias consecutivas y se cuenta el n\'umero de
+rachas $R$ (tramos mon\'otonos ascendentes o descendentes). Bajo $H_0$,
+\begin{equation}
+E[R] = \frac{2n-1}{3}, \qquad
+\mathrm{Var}[R] = \frac{16n-29}{90},
+\end{equation}
+y el estad\'istico $Z = (R - E[R])/\sqrt{\mathrm{Var}[R]}$ es
+aproximadamente normal est\'andar.
+
+\subsubsection{Kolmogorov-Smirnov}
+
+Compara la funci\'on de distribuci\'on emp\'irica $F_n$ con la te\'orica
+uniforme $F(x)=x$ mediante la m\'axima discrepancia
+\begin{equation}
+D = \max_{1 \le i \le n}
+\left\{ \frac{i}{n} - u_{(i)},\; u_{(i)} - \frac{i-1}{n} \right\},
+\end{equation}
+donde $u_{(i)}$ son los valores ordenados. A diferencia del
+chi-cuadrado, no requiere agrupar en intervalos y es sensible a
+desviaciones locales de la CDF.
+
+\subsubsection{Autocorrelaci\'on serial}
+
+Mide la dependencia entre valores separados un retardo $k$ (aqu\'i $k=1$):
+\begin{equation}
+\rho_k = \frac{\dfrac{1}{n-k}\displaystyle\sum_{i=1}^{n-k} u_i\,u_{i+k} - \tfrac{1}{4}}{\tfrac{1}{12}},
+\end{equation}
+ya que para uniformes independientes $E[u_i u_{i+k}] = \tfrac14$ y
+$\mathrm{Var}(u) = \tfrac1{12}$. El estad\'istico
+$Z = \rho_k\sqrt{n-k}$ es aproximadamente normal est\'andar. Detecta
+patrones de correlaci\'on que el chi-cuadrado y KS no captan.
+
+\subsubsection{Test de p\'oker}
+
+De cada valor se toman 5 d\'igitos decimales y se clasifica la ``mano''
+seg\'un su patr\'on de repeticiones (todos distintos, un par, dos pares,
+terna, full, p\'oker, quintilla). Las frecuencias observadas se contrastan
+con las probabilidades te\'oricas (Tabla~\ref{tab:poker}) mediante una
+$\chi^2$. Detecta dependencias entre los d\'igitos de un mismo n\'umero.
+
+\begin{table}[H]
+\centering
+\begin{tabular}{lc}
+\toprule
+\textbf{Categor\'ia} & \textbf{Probabilidad} \\
+\midrule
+Todos distintos & 0,30240 \\
+Un par          & 0,50400 \\
+Dos pares       & 0,10800 \\
+Terna           & 0,07200 \\
+Full            & 0,00900 \\
+P\'oker         & 0,00450 \\
+Quintilla       & 0,00010 \\
+\bottomrule
+\end{tabular}
+\caption{Probabilidades te\'oricas de cada mano en el test de p\'oker de
+5 d\'igitos.}
+\label{tab:poker}
+\end{table}
+
+\subsection{Implementaci\'on}
+
+El programa se escribi\'o en Python 3 con una arquitectura modular. El
+paquete \texttt{generadores} contiene tres m\'odulos:
+\texttt{generators.py} (las clases \texttt{LCG}, \texttt{MiddleSquare},
+\texttt{XorShift} y \texttt{PythonRNG}, todas con la interfaz com\'un
+\texttt{next\_float} / \texttt{sample}), \texttt{tests.py} (las cinco
+pruebas, con las distribuciones $\chi^2$ y normal aproximadas mediante la
+funci\'on error y la gamma incompleta de \texttt{math}, sin dependencia de
+\texttt{scipy}) y \texttt{plotting.py} (histogramas, diagramas de
+dispersi\'on y comparativas, con \texttt{matplotlib}). La firma del CLI es:
+
+\begin{verbatim}
+python programa.py -n MUESTRA -s SEMILLA -a ALPHA
+\end{verbatim}
+
+\subsection{Justificaci\'on de los par\'ametros}
+
+\begin{itemize}
+  \item \textbf{Tama\~no de muestra $n = 10000$}: suficiente para que las
+    pruebas tengan potencia estad\'istica (en el chi-cuadrado se esperan
+    1000 valores por intervalo) sin que el c\'omputo sea costoso.
+  \item \textbf{Semilla com\'un $= 12345$}: garantiza reproducibilidad.
+    El GCL, el XorShift y el Mersenne Twister la comparten (con una
+    transformaci\'on para el XorShift); el M\'etodo de los Cuadrados
+    Medios usa una semilla de 6 d\'igitos distinta de cero.
+  \item \textbf{Nivel $\alpha = 0{,}05$}: convenci\'on est\'andar. Implica
+    que aun un generador perfecto fallar\'a, en promedio, 1 de cada 20
+    pruebas por azar (error de tipo I).
+\end{itemize}
+
+\section{Resultados}
+
+Se ejecut\'o el programa con $n = 10000$, semilla $12345$ y
+$\alpha = 0{,}05$. La Tabla~\ref{tab:resultados} resume el $p$-valor y el
+veredicto de cada prueba para cada generador, y la
+Tabla~\ref{tab:resumen} el conteo de pruebas superadas.
+
+\begin{table}[H]
+\centering
+\small
+\begin{tabular}{llcccc}
+\toprule
+\textbf{Prueba} & & \textbf{GCL} & \textbf{Cuad.\ Medios} & \textbf{XorShift} & \textbf{Python (MT)} \\
+\midrule
+Chi-cuadrado     & $p$ & 0,3984 & 0,0000 & 0,5801 & 0,7515 \\
+                 & veredicto & PASA & \textbf{FALLA} & PASA & PASA \\
+\addlinespace
+Rachas           & $p$ & 0,1789 & 0,0000 & 0,5322 & 0,9496 \\
+                 & veredicto & PASA & \textbf{FALLA} & PASA & PASA \\
+\addlinespace
+Kolmogorov-Smirnov & $p$ & 0,2967 & 0,0000 & 0,8384 & 0,5873 \\
+                 & veredicto & PASA & \textbf{FALLA} & PASA & PASA \\
+\addlinespace
+Autocorrelaci\'on  & $p$ & 0,0003 & 0,0000 & 0,0886 & 0,0126 \\
+                 & veredicto & \textbf{FALLA} & \textbf{FALLA} & PASA & \textbf{FALLA} \\
+\addlinespace
+P\'oker          & $p$ & 0,8512 & 0,0000 & 0,4109 & 0,4769 \\
+                 & veredicto & PASA & \textbf{FALLA} & PASA & PASA \\
+\bottomrule
+\end{tabular}
+\caption{$p$-valores y veredictos de las cinco pruebas
+($\alpha = 0{,}05$). Un veredicto FALLA indica $p < \alpha$.}
+\label{tab:resultados}
+\end{table}
+
+\begin{table}[H]
+\centering
+\begin{tabular}{lc}
+\toprule
+\textbf{Generador} & \textbf{Pruebas superadas} \\
+\midrule
+GCL (LCG)          & 4 / 5 \\
+Cuadrados Medios   & 0 / 5 \\
+XorShift32         & 5 / 5 \\
+Python (MT19937)   & 4 / 5 \\
+\bottomrule
+\end{tabular}
+\caption{Resumen de pruebas superadas por generador.}
+\label{tab:resumen}
+\end{table}
+
+\subsection{Histogramas de uniformidad}
+
+\begin{figure}[H]
+\centering
+\begin{subfigure}{0.48\textwidth}
+  \includegraphics[width=\textwidth]{output/hist_gcl.png}
+  \caption{GCL (LCG)}
+\end{subfigure}
+\begin{subfigure}{0.48\textwidth}
+  \includegraphics[width=\textwidth]{output/hist_midsq.png}
+  \caption{Cuadrados Medios}
+\end{subfigure}
+\\[0.5em]
+\begin{subfigure}{0.48\textwidth}
+  \includegraphics[width=\textwidth]{output/hist_xorshift.png}
+  \caption{XorShift32}
+\end{subfigure}
+\begin{subfigure}{0.48\textwidth}
+  \includegraphics[width=\textwidth]{output/hist_python.png}
+  \caption{Python (MT19937)}
+\end{subfigure}
+\caption{Histogramas de las muestras frente a la densidad uniforme
+($=1$). El GCL, el XorShift y el Mersenne Twister son visiblemente planos;
+el M\'etodo de los Cuadrados Medios concentra la masa en pocos valores.}
+\label{fig:hist}
+\end{figure}
+
+\subsection{Diagramas de dispersi\'on de pares consecutivos}
+
+\begin{figure}[H]
+\centering
+\begin{subfigure}{0.48\textwidth}
+  \includegraphics[width=\textwidth]{output/scatter_gcl.png}
+  \caption{GCL (LCG)}
+\end{subfigure}
+\begin{subfigure}{0.48\textwidth}
+  \includegraphics[width=\textwidth]{output/scatter_midsq.png}
+  \caption{Cuadrados Medios}
+\end{subfigure}
+\\[0.5em]
+\begin{subfigure}{0.48\textwidth}
+  \includegraphics[width=\textwidth]{output/scatter_xorshift.png}
+  \caption{XorShift32}
+\end{subfigure}
+\begin{subfigure}{0.48\textwidth}
+  \includegraphics[width=\textwidth]{output/scatter_python.png}
+  \caption{Python (MT19937)}
+\end{subfigure}
+\caption{Diagramas de dispersi\'on de pares consecutivos
+$(u_i, u_{i+1})$. La nube uniforme indica ausencia de estructura
+latticial visible; el colapso del M\'etodo de los Cuadrados Medios a un
+punto fijo es evidente.}
+\label{fig:scatter}
+\end{figure}
+
+\subsection{Comparaci\'on de $p$-valores}
+
+\begin{figure}[H]
+\centering
+\begin{subfigure}{0.48\textwidth}
+  \includegraphics[width=\textwidth]{output/comparacion_chi2.png}
+  \caption{Chi-cuadrado}
+\end{subfigure}
+\begin{subfigure}{0.48\textwidth}
+  \includegraphics[width=\textwidth]{output/comparacion_ks.png}
+  \caption{Kolmogorov-Smirnov}
+\end{subfigure}
+\caption{$p$-valores por generador en las pruebas de uniformidad. La
+l\'inea punteada marca $\alpha = 0{,}05$: las barras por debajo
+corresponden a generadores que fallan la prueba.}
+\label{fig:comparacion}
+\end{figure}
+
+\section{Discusi\'on}
+
+\textbf{El M\'etodo de los Cuadrados Medios degenera.} Falla las cinco
+pruebas con $p$-valores pr\'acticamente nulos. El diagrama de dispersi\'on
+(Fig.~\ref{fig:scatter}b) revela la causa: la secuencia colapsa
+r\'apidamente en un punto fijo y se queda atrapada en \'el, por lo que la
+inmensa mayor\'ia de los valores son id\'enticos. El histograma
+(Fig.~\ref{fig:hist}b) confirma la concentraci\'on de masa. Es la
+ilustraci\'on cl\'asica de por qu\'e este m\'etodo, pese a su valor
+hist\'orico, qued\'o en desuso: su periodo efectivo es impredecible y, a
+menudo, brev\'isimo.
+
+\textbf{El GCL es de buena calidad pero arrastra correlaci\'on serial.}
+Supera la uniformidad (chi-cuadrado, KS), la independencia global (rachas)
+y el p\'oker con holgura, pero \textbf{falla la autocorrelaci\'on lag-1}
+($p = 0{,}0003$). Este resultado es consistente con la teor\'ia: los
+generadores congruenciales lineales producen puntos que yacen sobre un
+n\'umero finito de hiperplanos (los \emph{planos de Marsaglia}), lo que
+introduce una dependencia serial detectable. Aunque en el diagrama de
+dispersi\'on 2D (Fig.~\ref{fig:scatter}a) la estructura no es visible a
+simple vista para este multiplicador, la prueba de autocorrelaci\'on
+s\'i la cuantifica. Es la limitaci\'on m\'as conocida de la familia GCL.
+
+\textbf{El XorShift supera todas las pruebas.} Con 5/5, exhibe el mejor
+desempe\~no del conjunto en esta corrida, incluida la autocorrelaci\'on
+($p = 0{,}0886$) que el GCL no logra pasar. Confirma que un dise\~no
+basado en operaciones de bits puede romper la estructura latticial que
+penaliza al GCL, manteniendo a la vez una implementaci\'on muy simple.
+
+\textbf{El Mersenne Twister y el papel del azar.} El generador de Python,
+de calidad reconocida, pasa 4/5 y falla la autocorrelaci\'on por margen
+estrecho ($p = 0{,}0126$). Esto \emph{no} indica un defecto del MT19937,
+sino que ilustra un punto metodol\'ogico esencial: con $\alpha = 0{,}05$,
+todo generador --- por bueno que sea --- rechaza $H_0$ aproximadamente
+en 1 de cada 20 pruebas por puro azar (error de tipo I). El veredicto de
+una \'unica corrida debe interpretarse con cautela; la pr\'actica correcta
+es repetir las pruebas con varias semillas y observar la distribuci\'on de
+los $p$-valores.
+
+\textbf{Sobre el dise\~no de las pruebas.} La bater\'ia es complementaria:
+el chi-cuadrado y KS miden uniformidad pero son ciegos al orden de los
+valores; las rachas y la autocorrelaci\'on miden dependencia temporal; el
+p\'oker mira la estructura interna de cada n\'umero. Ning\'un test por
+s\'i solo basta --- el GCL pasa cuatro y s\'olo el quinto delata su
+debilidad ---, lo que justifica el requisito de aplicar m\'ultiples
+pruebas.
+
+\section{Conclusiones}
+
+\begin{enumerate}
+  \item Se implementaron y compararon cuatro generadores
+    pseudoaleatorios. La calidad estad\'istica observada los ordena
+    claramente: XorShift (5/5) $\ge$ GCL $\approx$ Mersenne Twister (4/5)
+    $\gg$ Cuadrados Medios (0/5).
+  \item El M\'etodo de los Cuadrados Medios es inadecuado para
+    simulaci\'on: degenera en ciclos cortos o puntos fijos y fracasa en
+    todas las pruebas, tal como anticipa la teor\'ia.
+  \item El GCL es uniforme e independiente en sentido global, pero su
+    correlaci\'on serial (consecuencia de los planos de Marsaglia)
+    constituye su debilidad caracter\'istica, detectada por el test de
+    autocorrelaci\'on.
+  \item Ning\'un test individual es suficiente: un generador puede superar
+    varias pruebas y fallar una sola que revele su defecto. La validaci\'on
+    exige una bater\'ia complementaria de pruebas de uniformidad,
+    independencia y estructura interna.
+  \item Los veredictos de una \'unica corrida deben interpretarse a la luz
+    del error de tipo I: con $\alpha = 0{,}05$, incluso un generador
+    excelente fallar\'a ocasionalmente por azar, por lo que conviene
+    repetir las pruebas con m\'ultiples semillas.
+\end{enumerate}
+
+\begin{thebibliography}{9}
+
+\bibitem{enunciado}
+Torres, J. I. (2026). \emph{TP 2.1 - Generadores Pseudoaleatorios}.
+C\'atedra Simulaci\'on, UTN FRRO.
+
+\bibitem{knuth}
+Knuth, D. E. (1997). \emph{The Art of Computer Programming, Vol. 2:
+Seminumerical Algorithms} (3\textsuperscript{a} ed.). Addison-Wesley.
+
+\bibitem{parkmiller}
+Park, S. K., \& Miller, K. W. (1988). Random Number Generators: Good Ones
+Are Hard to Find. \emph{Communications of the ACM}, 31(10), 1192-1201.
+
+\bibitem{marsaglia}
+Marsaglia, G. (2003). Xorshift RNGs. \emph{Journal of Statistical
+Software}, 8(14), 1-6.
+
+\bibitem{matsumoto}
+Matsumoto, M., \& Nishimura, T. (1998). Mersenne Twister: A
+623-dimensionally equidistributed uniform pseudo-random number generator.
+\emph{ACM Transactions on Modeling and Computer Simulation}, 8(1), 3-30.
+
+\bibitem{lecuyer}
+L'Ecuyer, P., \& Simard, R. (2007). TestU01: A C Library for Empirical
+Testing of Random Number Generators. \emph{ACM Transactions on
+Mathematical Software}, 33(4), 1-40.
+
+\bibitem{ross}
+Ross, S. M. (2019). \emph{Introducci\'on a la Probabilidad y la
+Estad\'istica para Ingenieros y Cient\'ificos} (5\textsuperscript{a}
+ed.). Academic Press.
+
+\bibitem{randomorg}
+Haahr, M. \emph{RANDOM.ORG: True Random Number Service}.
+\url{https://www.random.org/analysis/}
+
+\bibitem{matplotlib}
+Hunter, J. D. (2007). Matplotlib: A 2D Graphics Environment.
+\emph{Computing in Science \& Engineering}, 9(3), 90-95.
+
+\bibitem{python}
+Van Rossum, G., \& Drake, F. L. (2009). \emph{Python 3 Reference
+Manual}. CreateSpace.
+
+\end{thebibliography}
+
+\end{document}
