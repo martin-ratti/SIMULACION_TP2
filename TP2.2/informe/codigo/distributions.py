@@ -32,11 +32,6 @@ from typing import List, Sequence
 from .rng import LCG
 
 
-# ===========================================================================
-# DISTRIBUCIONES CONTINUAS
-# ===========================================================================
-
-
 class Uniform:
     """Distribucion uniforme continua en [a, b].
 
@@ -82,7 +77,7 @@ class Exponential:
         if mean <= 0:
             raise ValueError("la media debe ser positiva")
         self.rng = rng
-        self.mean = mean  # EX = 1/alpha
+        self.mean = mean
         self.mean_theoretical = mean
         self.var_theoretical = mean ** 2
 
@@ -116,7 +111,7 @@ class Gamma:
         self.rng = rng
         self.k = k
         self.mean = mean
-        self.alpha = k / mean  # tasa de cada exponencial componente
+        self.alpha = k / mean
         self.mean_theoretical = mean
         self.var_theoretical = mean ** 2 / k
 
@@ -153,7 +148,7 @@ class Normal:
         self.sigma = sigma
         self.mean_theoretical = mu
         self.var_theoretical = sigma ** 2
-        self._cached = None  # segunda normal estandar pendiente
+        self._cached = None
 
     def generate(self) -> float:
         if self._cached is not None:
@@ -170,11 +165,6 @@ class Normal:
 
     def sample(self, n: int) -> List[float]:
         return [self.generate() for _ in range(n)]
-
-
-# ===========================================================================
-# DISTRIBUCIONES DISCRETAS
-# ===========================================================================
 
 
 class Pascal:
@@ -301,10 +291,9 @@ class Hypergeometric:
                 x += 1
             else:
                 s = 0.0
-            # Actualizar p y N para la siguiente extraccion (sin reemplazo).
             if N > 1:
                 p = (N * p - s) / (N - 1.0)
-                p = min(1.0, max(0.0, p))  # evitar derivas numericas
+                p = min(1.0, max(0.0, p))
             N -= 1.0
         return x
 
@@ -331,7 +320,7 @@ class Poisson:
             raise ValueError("lambda debe ser positivo")
         self.rng = rng
         self.lam = lam
-        self._threshold = math.exp(-lam)  # B = e^{-lambda}
+        self._threshold = math.exp(-lam)
         self.mean_theoretical = lam
         self.var_theoretical = lam
 
@@ -370,7 +359,6 @@ class EmpiricalDiscrete:
         self.rng = rng
         self.values = list(values)
         self.probs = list(probs)
-        # Acumulada para la busqueda inversa.
         self.cumulative: List[float] = []
         acc = 0.0
         for pr in self.probs:
@@ -385,7 +373,7 @@ class EmpiricalDiscrete:
         for value, cum in zip(self.values, self.cumulative):
             if r <= cum:
                 return value
-        return self.values[-1]  # salvaguarda por redondeo
+        return self.values[-1]
 
     def sample(self, n: int) -> List:
         return [self.generate() for _ in range(n)]

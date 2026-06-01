@@ -40,7 +40,6 @@ class LCG:
         self.m = m
         self._state = seed % m
         if self._state == 0 and c == 0:
-            # Estado 0 en un GCL multiplicativo queda atrapado en 0.
             self._state = 1
 
     def next_int(self) -> int:

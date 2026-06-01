@@ -192,7 +192,7 @@ x = a + (b-a)\,r, \qquad r \sim U(0,1).
 \end{equation}
 
 \textbf{C\'odigo.}
-\lstinputlisting[firstline=40, lastline=65, caption={Distribuci\'on
+\lstinputlisting[firstline=35, lastline=60, caption={Distribuci\'on
 uniforme (clase \texttt{Uniform}).}]{codigo/distributions.py}
 
 \subsection{Distribuci\'on exponencial}
@@ -216,7 +216,7 @@ x = -\frac{1}{\alpha}\ln(r) = -EX\,\ln(r).
 \end{equation}
 
 \textbf{C\'odigo.}
-\lstinputlisting[firstline=68, lastline=94, caption={Distribuci\'on
+\lstinputlisting[firstline=63, lastline=89, caption={Distribuci\'on
 exponencial (clase \texttt{Exponential}).}]{codigo/distributions.py}
 
 \subsection{Distribuci\'on gamma (Erlang)}
@@ -238,7 +238,7 @@ x = \sum_{i=1}^{k} \left(-\frac{1}{\alpha}\ln r_i\right)
 \end{equation}
 
 \textbf{C\'odigo.}
-\lstinputlisting[firstline=97, lastline=130, caption={Distribuci\'on gamma
+\lstinputlisting[firstline=92, lastline=125, caption={Distribuci\'on gamma
 / Erlang (clase \texttt{Gamma}).}]{codigo/distributions.py}
 
 \subsection{Distribuci\'on normal}
@@ -262,7 +262,7 @@ y luego $x = \mu + \sigma z$. Se aprovechan ambas normales por par
 generado.
 
 \textbf{C\'odigo.}
-\lstinputlisting[firstline=133, lastline=172, caption={Distribuci\'on
+\lstinputlisting[firstline=128, lastline=167, caption={Distribuci\'on
 normal por Box-Muller (clase \texttt{Normal}).}]{codigo/distributions.py}
 
 \section{Distribuciones discretas}
@@ -287,7 +287,7 @@ x = \sum_{i=1}^{k} \left\lfloor \frac{\ln r_i}{\ln q} \right\rfloor.
 \end{equation}
 
 \textbf{C\'odigo.}
-\lstinputlisting[firstline=180, lastline=222, caption={Distribuci\'on de
+\lstinputlisting[firstline=170, lastline=212, caption={Distribuci\'on de
 Pascal (clase \texttt{Pascal}).}]{codigo/distributions.py}
 
 \subsection{Distribuci\'on binomial}
@@ -304,7 +304,7 @@ por cada uno de los $n$ ensayos se genera $r \sim U(0,1)$ y se cuenta un
 \'exito si $r \le p$ (Naylor, figura 4-19).
 
 \textbf{C\'odigo.}
-\lstinputlisting[firstline=225, lastline=255, caption={Distribuci\'on
+\lstinputlisting[firstline=215, lastline=245, caption={Distribuci\'on
 binomial (clase \texttt{Binomial}).}]{codigo/distributions.py}
 
 \subsection{Distribuci\'on hipergeom\'etrica}
@@ -327,7 +327,7 @@ donde $S=1$ si el elemento extra\'ido fue de la clase I y $S=0$ en caso
 contrario.
 
 \textbf{C\'odigo.}
-\lstinputlisting[firstline=258, lastline=312, caption={Distribuci\'on
+\lstinputlisting[firstline=248, lastline=301, caption={Distribuci\'on
 hipergeom\'etrica (clase \texttt{Hypergeometric}).}]{codigo/distributions.py}
 
 \subsection{Distribuci\'on de Poisson}
@@ -348,7 +348,7 @@ x = \max\left\{ n : \prod_{i=0}^{n} r_i \ge e^{-\lambda} \right\}.
 \end{equation}
 
 \textbf{C\'odigo.}
-\lstinputlisting[firstline=315, lastline=347, caption={Distribuci\'on de
+\lstinputlisting[firstline=304, lastline=336, caption={Distribuci\'on de
 Poisson (clase \texttt{Poisson}).}]{codigo/distributions.py}
 
 \subsection{Distribuci\'on emp\'irica discreta}
@@ -365,7 +365,7 @@ p_1 + \cdots + p_{i-1} < r \le p_1 + \cdots + p_i.
 \end{equation}
 
 \textbf{C\'odigo.}
-\lstinputlisting[firstline=350, lastline=391, caption={Distribuci\'on
+\lstinputlisting[firstline=339, lastline=379, caption={Distribuci\'on
 emp\'irica discreta (clase \texttt{EmpiricalDiscrete}).}]{codigo/distributions.py}
 
 \section{Testeo y resultados}
